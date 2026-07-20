@@ -8,9 +8,29 @@
 {% block head %}{% endblock %}
 </head>
 <body>
-<div id="app">
+<div id="sidebar">
+  <div class="logo"><a href="/">MD Tracker</a></div>
+  <nav>
+    <a href="/" class="{% if active_page == 'dashboard' %}active{% endif %}"><span class="icon">&#9632;</span> Dashboard</a>
+    <div class="sidebar-section">Tracked Files</div>
+    {% for f in files %}
+    <a class="sidebar-file {% if active_file_id == f.id %}active{% endif %}" href="/view/{{ f.id }}">
+      <span class="file-icon">&#128196;</span>
+      <span class="file-name">{{ f.name }}</span>
+      <div class="mini-bar"><div class="mini-bar-fill" style="width:{{ f.progress_pct }}%"></div></div>
+    </a>
+    {% endfor %}
+  </nav>
+  <div class="add-file-form">
+    <input type="text" id="add-file-input" placeholder="Paste .md file path...">
+    <button onclick="addFile()">+ Track File</button>
+  </div>
+</div>
+<div id="main">
 {% block body %}{% endblock %}
 </div>
+<div class="toast" id="toast"></div>
+<script src="/static/app.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

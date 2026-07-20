@@ -1,6 +1,103 @@
 {% extends "base.html" %}
+{% set active_page = "dashboard" %}
 {% block title %}Dashboard - MD Tracker{% endblock %}
 {% block body %}
-<h1>Dashboard</h1>
-<p>{{ stats.total_files }} files tracked</p>
+<div class="page-title">Dashboard</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Tracked Files</div>
+    <div class="stat-value">{{ stats.total_files }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total Steps</div>
+    <div class="stat-value">{{ stats.total_steps }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Completed</div>
+    <div class="stat-value">{{ stats.completed_steps }}</div>
+    <div class="stat-sub">of {{ stats.total_steps }} steps</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Overall Progress</div>
+    <div class="stat-value" style="color: {% if stats.progress_pct == 100 %}#27ae60{% else %}#4a6cf7{% endif %}">{{ stats.progress_pct }}%</div>
+  </div>
+</div>
+
+{% if files|length > 0 %}
+<div class="charts-row">
+  <div class="chart-card doughnut">
+    <h3>Overall Progress</h3>
+    <canvas id="doughnut-chart" width="200" height="200"></canvas>
+  </div>
+  <div class="chart-card bar">
+    <h3>Per-File Progress</h3>
+    <canvas id="bar-chart" height="160"></canvas>
+  </div>
+</div>
+
+<div class="page-title" style="font-size:16px; margin-top:8px;">Your Files</div>
+<div class="files-grid">
+  {% for f in files %}
+  <div class="file-card" onclick="window.location='/view/{{ f.id }}'">
+    <div class="fc-name">{{ f.name }}</div>
+    <div class="fc-path">{{ f.path }}</div>
+    <div class="fc-bar"><div class="fc-bar-fill {% if f.progress_pct == 100 %}done{% endif %}" style="width:{{ f.progress_pct }}%"></div></div>
+    <div class="fc-stats">
+      <span>{{ f.completed_steps }}/{{ f.total_steps }} steps</span>
+      <span class="fc-pct {% if f.progress_pct == 100 %}done{% endif %}">{{ f.progress_pct }}%</span>
+    </div>
+    <div class="fc-actions" onclick="event.stopPropagation()">
+      <button onclick="rescanFile({{ f.id }})">Rescan</button>
+      <button class="delete" onclick="deleteFile({{ f.id }}, '{{ f.name | e }}')">Remove</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">&#128196;</div>
+  <p>No files tracked yet. Add a markdown file path in the sidebar to get started.</p>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  {% if files|length > 0 %}
+  const done = {{ stats.completed_steps }};
+  const remaining = {{ stats.total_steps }} - {{ stats.completed_steps }};
+
+  new Chart(document.getElementById('doughnut-chart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Completed', 'Remaining'],
+      datasets: [{
+        data: [done, remaining],
+        backgroundColor: ['#27ae60', '#e8e8e8'],
+        borderWidth: 0
+      }]
+    },
+    options: { cutout: '65%', plugins: { legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } } } }
+  });
+
+  const fileNames = [{% for f in files %}'{{ f.name | e }}'{% if not loop.last %},{% endif %}{% endfor %}];
+  const filePcts = [{% for f in files %}{{ f.progress_pct }}{% if not loop.last %},{% endif %}{% endfor %}];
+  const barColors = filePcts.map(p => p === 100 ? '#27ae60' : '#4a6cf7');
+
+  new Chart(document.getElementById('bar-chart'), {
+    type: 'bar',
+    data: {
+      labels: fileNames,
+      datasets: [{ label: 'Progress %', data: filePcts, backgroundColor: barColors, borderRadius: 4, barThickness: 28 }]
+    },
+    options: {
+      indexAxis: 'y',
+      scales: { x: { max: 100, ticks: { callback: v => v + '%' } }, y: { ticks: { font: { size: 11 } } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+  {% endif %}
+});
+</script>
 {% endblock %}
