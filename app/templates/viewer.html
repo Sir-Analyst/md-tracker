@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ file.name }} - MD Tracker{% endblock %}
+{% block body %}
+<h1>{{ file.name }}</h1>
+<p>{{ stats.completed_steps }}/{{ stats.total_steps }} steps completed</p>
+{% endblock %}
