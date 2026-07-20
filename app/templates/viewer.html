@@ -1,6 +1,145 @@
 {% extends "base.html" %}
+{% set active_file_id = file.id %}
 {% block title %}{{ file.name }} - MD Tracker{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+.viewer-header { margin-bottom: 20px; }
+.viewer-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.viewer-header .vh-path { font-size: 11px; color: #999; margin-bottom: 10px; word-break: break-all; }
+.viewer-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.viewer-bar-fill { height: 100%; background: #4a6cf7; border-radius: 4px; transition: width 0.4s; }
+.viewer-bar-fill.done { background: #27ae60; }
+.viewer-bar-label { font-size: 12px; color: #888; margin-bottom: 14px; }
+.viewer-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+.viewer-actions button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 5px; background: #fff; font-size: 12px; cursor: pointer; color: #555; }
+.viewer-actions button:hover { background: #f5f5f5; }
+.viewer-actions a { padding: 6px 14px; border: 1px solid #ddd; border-radius: 5px; background: #fff; font-size: 12px; cursor: pointer; color: #555; text-decoration: none; display: inline-flex; align-items: center; }
+.viewer-actions a:hover { background: #f5f5f5; }
+#viewer-content { background: #fff; border-radius: 10px; padding: 28px 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); line-height: 1.7; }
+#viewer-content h1 { font-size: 24px; border-bottom: 2px solid #eee; padding-bottom: 8px; margin: 24px 0 16px; }
+#viewer-content h2 { font-size: 20px; border-bottom: 1px solid #eee; padding-bottom: 6px; margin: 20px 0 12px; display: flex; align-items: center; gap: 10px; }
+#viewer-content h3 { font-size: 17px; margin: 18px 0 10px; display: flex; align-items: center; gap: 10px; }
+#viewer-content p { margin: 8px 0; }
+#viewer-content code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: 'Consolas', monospace; font-size: 0.9em; }
+#viewer-content pre { background: #f6f6f6; padding: 12px 16px; border-radius: 6px; overflow-x: auto; margin: 10px 0; }
+#viewer-content pre code { background: none; padding: 0; }
+#viewer-content ul, #viewer-content ol { padding-left: 24px; }
+#viewer-content li { margin: 4px 0; display: flex; align-items: flex-start; gap: 8px; }
+#viewer-content blockquote { border-left: 4px solid #ddd; margin: 12px 0; padding: 8px 16px; color: #666; }
+#viewer-content a { color: #4a6cf7; }
+#viewer-content hr { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+#viewer-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+#viewer-content th, #viewer-content td { border: 1px solid #ddd; padding: 8px 12px; font-size: 13px; text-align: left; }
+#viewer-content th { background: #f8f8f8; font-weight: 600; }
+.step-check { width: 18px; height: 18px; cursor: pointer; accent-color: #4a6cf7; flex-shrink: 0; margin-top: 3px; }
+.step-check:checked + .step-label { text-decoration: line-through; color: #aaa; }
+.step-label { cursor: pointer; }
+h2 .step-check, h3 .step-check { margin-top: 2px; }
+.list-item-check { margin-top: 4px; }
+</style>
+{% endblock %}
 {% block body %}
-<h1>{{ file.name }}</h1>
-<p>{{ stats.completed_steps }}/{{ stats.total_steps }} steps completed</p>
+<div class="viewer-header">
+  <h1>{{ file.name }}</h1>
+  <div class="vh-path">{{ file.path }}</div>
+  <div class="viewer-bar"><div class="viewer-bar-fill {% if stats.progress_pct == 100 %}done{% endif %}" id="viewer-progress-fill" style="width:{{ stats.progress_pct }}%"></div></div>
+  <div class="viewer-bar-label" id="viewer-progress-label">{{ stats.completed_steps }}/{{ stats.total_steps }} ({{ stats.progress_pct }}%)</div>
+  <div class="viewer-actions">
+    <a href="/">&#8592; Dashboard</a>
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+  </div>
+</div>
+<div id="viewer-content"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+var STEPS = {{ steps | tojson }};
+var MD_CONTENT = {{ content | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+  renderMarkdown();
+  injectCheckboxes();
+  updateViewerProgress();
+});
+
+function renderMarkdown() {
+  var el = document.getElementById('viewer-content');
+  if (typeof marked !== 'undefined' && marked.parse) {
+    el.innerHTML = marked.parse(MD_CONTENT);
+  } else {
+    el.innerHTML = '<pre>' + MD_CONTENT.replace(/</g,'&lt;') + '</pre>';
+  }
+}
+
+function injectCheckboxes() {
+  var el = document.getElementById('viewer-content');
+  var stepMap = {};
+  STEPS.forEach(function(s) {
+    stepMap[s.title] = s;
+  });
+
+  el.querySelectorAll('h2, h3').forEach(function(heading) {
+    var text = heading.textContent.trim();
+    var step = stepMap[text];
+    if (!step) return;
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'step-check';
+    cb.checked = step.completed === 1;
+    cb.dataset.stepId = step.id;
+    cb.addEventListener('change', function() {
+      toggleStep(step.id, this);
+    });
+
+    heading.insertBefore(cb, heading.firstChild);
+    heading.classList.add('has-step');
+  });
+
+  var listSteps = STEPS.filter(function(s) { return s.level === 'list'; });
+  var listItems = el.querySelectorAll('ol li');
+  var listIdx = 0;
+
+  el.querySelectorAll('ul li, ol li').forEach(function(li) {
+    if (listIdx >= listSteps.length) return;
+    var step = listSteps[listIdx];
+    listIdx++;
+
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'step-check list-item-check';
+    cb.checked = step.completed === 1;
+    cb.dataset.stepId = step.id;
+    cb.addEventListener('change', function() {
+      toggleStep(step.id, this);
+    });
+
+    li.insertBefore(cb, li.firstChild);
+  });
+}
+
+function expandAll() {
+  document.querySelectorAll('#viewer-content h2, #viewer-content h3').forEach(function(h) {
+    var next = h.nextElementSibling;
+    while (next && !['H2','H3'].includes(next.tagName)) {
+      next.style.display = '';
+      next = next.nextElementSibling;
+    }
+  });
+}
+
+function collapseAll() {
+  document.querySelectorAll('#viewer-content h2, #viewer-content h3').forEach(function(h) {
+    if (h.tagName === 'H3') {
+      var next = h.nextElementSibling;
+      while (next && next.tagName !== 'H2' && next.tagName !== 'H3') {
+        next.style.display = 'none';
+        next = next.nextElementSibling;
+      }
+    }
+  });
+}
+</script>
 {% endblock %}
