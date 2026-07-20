@@ -80,3 +80,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
+
+function onBrowseFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var input = document.getElementById('add-file-input');
+  var path = file.name;
+  if (file.webkitRelativePath) {
+    path = file.webkitRelativePath;
+  } else if (file.path) {
+    path = file.path;
+  }
+  input.value = path;
+  event.target.value = '';
+}

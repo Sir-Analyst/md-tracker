@@ -22,7 +22,11 @@
     {% endfor %}
   </nav>
   <div class="add-file-form">
-    <input type="text" id="add-file-input" placeholder="Paste .md file path...">
+    <div class="add-file-row">
+      <input type="text" id="add-file-input" placeholder="Paste .md file path...">
+      <label class="browse-btn" for="browse-file-input" title="Browse for file">&#128193;</label>
+      <input type="file" id="browse-file-input" accept=".md,.markdown,.txt" style="display:none" onchange="onBrowseFile(event)">
+    </div>
     <button onclick="addFile()">+ Track File</button>
   </div>
 </div>
