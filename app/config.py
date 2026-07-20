@@ -12,4 +12,5 @@ PORT = 8080
 
 SCAN_DIRS = [
     str(Path.home() / "Desktop"),
+    r"C:\Desktop",
 ]

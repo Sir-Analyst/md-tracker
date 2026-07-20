@@ -145,7 +145,13 @@ def api_rescan_file(file_id: int):
 @app.get("/api/browse")
 def api_browse(path: str = ""):
     if not path:
-        path = str(Path.home() / "Desktop")
+        home_desktop = Path.home() / "Desktop"
+        if home_desktop.exists():
+            path = str(home_desktop)
+        elif Path(r"C:\Desktop").exists():
+            path = r"C:\Desktop"
+        else:
+            path = str(Path.home())
     p = Path(path)
     if not p.exists():
         raise HTTPException(status_code=404, detail="Directory not found")
