@@ -24,8 +24,7 @@
   <div class="add-file-form">
     <div class="add-file-row">
       <input type="text" id="add-file-input" placeholder="Paste .md file path...">
-      <label class="browse-btn" for="browse-file-input" title="Browse for file">&#128193;</label>
-      <input type="file" id="browse-file-input" accept=".md,.markdown,.txt" style="display:none" onchange="onBrowseFile(event)">
+      <button class="browse-btn" title="Browse for file" onclick="openFileBrowser()">&#128193;</button>
     </div>
     <button onclick="addFile()">+ Track File</button>
   </div>
@@ -34,6 +33,20 @@
 {% block body %}{% endblock %}
 </div>
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="file-browser-modal" style="display:none" onclick="closeFileBrowser(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span>Browse Files</span>
+      <button class="modal-close" onclick="closeFileBrowser()">&times;</button>
+    </div>
+    <div class="modal-path" id="browser-current-path"></div>
+    <div class="modal-body" id="browser-file-list"></div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeFileBrowser()">Cancel</button>
+    </div>
+  </div>
+</div>
 <script src="/static/app.js"></script>
 {% block scripts %}{% endblock %}
 </body>

@@ -81,16 +81,72 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-function onBrowseFile(event) {
-  var file = event.target.files[0];
-  if (!file) return;
-  var input = document.getElementById('add-file-input');
-  var path = file.name;
-  if (file.webkitRelativePath) {
-    path = file.webkitRelativePath;
-  } else if (file.path) {
-    path = file.path;
+var browserCurrentPath = '';
+
+function openFileBrowser(startPath) {
+  var modal = document.getElementById('file-browser-modal');
+  modal.style.display = 'flex';
+  loadBrowserDir(startPath || '');
+}
+
+function closeFileBrowser(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('file-browser-modal').style.display = 'none';
+}
+
+async function loadBrowserDir(path) {
+  var list = document.getElementById('browser-file-list');
+  var pathEl = document.getElementById('browser-current-path');
+  list.innerHTML = '<div style="padding:12px 18px;color:#999;font-size:12px;">Loading...</div>';
+
+  try {
+    var url = '/api/browse' + (path ? '?path=' + encodeURIComponent(path) : '');
+    var resp = await fetch(url);
+    var data = await resp.json();
+    if (!resp.ok) { list.innerHTML = '<div style="padding:12px 18px;color:#e74c3c;font-size:12px;">' + data.detail + '</div>'; return; }
+
+    browserCurrentPath = data.current;
+    pathEl.textContent = data.current;
+    list.innerHTML = '';
+
+    if (data.parent) {
+      var back = document.createElement('div');
+      back.className = 'browser-item back';
+      back.innerHTML = '<span class="bi-icon">&#8593;</span><span class="bi-name">..</span>';
+      back.onclick = function() { loadBrowserDir(data.parent); };
+      list.appendChild(back);
+    }
+
+    var dirs = data.items.filter(function(i) { return i.is_dir; });
+    var files = data.items.filter(function(i) { return !i.is_dir; });
+
+    dirs.forEach(function(item) {
+      var el = document.createElement('div');
+      el.className = 'browser-item dir';
+      el.innerHTML = '<span class="bi-icon">&#128193;</span><span class="bi-name">' + item.name + '</span>';
+      el.onclick = function() { loadBrowserDir(item.path); };
+      list.appendChild(el);
+    });
+
+    files.forEach(function(item) {
+      if (!/\.(md|markdown|txt)$/i.test(item.name)) return;
+      var el = document.createElement('div');
+      el.className = 'browser-item file';
+      el.innerHTML = '<span class="bi-icon">&#128196;</span><span class="bi-name">' + item.name + '</span>';
+      el.onclick = function() {
+        list.querySelectorAll('.browser-item.file').forEach(function(f) { f.classList.remove('selected'); });
+        el.classList.add('selected');
+        document.getElementById('add-file-input').value = item.path;
+        closeFileBrowser();
+        addFile();
+      };
+      list.appendChild(el);
+    });
+
+    if (dirs.length === 0 && files.filter(function(f) { return /\.(md|markdown|txt)$/i.test(f.name); }).length === 0) {
+      list.innerHTML += '<div style="padding:12px 18px;color:#999;font-size:12px;">No markdown files here</div>';
+    }
+  } catch (e) {
+    list.innerHTML = '<div style="padding:12px 18px;color:#e74c3c;font-size:12px;">Failed to load: ' + e.message + '</div>';
   }
-  input.value = path;
-  event.target.value = '';
 }

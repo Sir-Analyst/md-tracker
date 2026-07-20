@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import os
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -139,6 +140,35 @@ def api_rescan_file(file_id: int):
     steps = get_steps(file_id)
     stats = get_file_stats(file_id)
     return {"steps": steps, "stats": stats}
+
+
+@app.get("/api/browse")
+def api_browse(path: str = ""):
+    if not path:
+        path = str(Path.home() / "Desktop")
+    p = Path(path)
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="Directory not found")
+    if not p.is_dir():
+        p = p.parent
+
+    items = []
+    try:
+        entries = sorted(os.scandir(str(p)), key=lambda e: (not e.is_dir(), e.name.lower()))
+    except PermissionError:
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    for entry in entries:
+        if entry.name.startswith("."):
+            continue
+        items.append({
+            "name": entry.name,
+            "path": entry.path,
+            "is_dir": entry.is_dir(),
+        })
+
+    parent = str(p.parent) if str(p.parent) != str(p) else None
+    return {"current": str(p), "parent": parent, "items": items}
 
 
 if __name__ == "__main__":
