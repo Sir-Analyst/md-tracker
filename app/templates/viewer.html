@@ -36,6 +36,7 @@
 .step-check:checked + .step-label { text-decoration: line-through; color: #aaa; }
 .step-label { cursor: pointer; }
 h2 .step-check, h3 .step-check { margin-top: 2px; }
+#viewer-content ul ul, #viewer-content ol ol, #viewer-content ul ol, #viewer-content ol ul { margin-top: 4px; margin-bottom: 4px; }
 </style>
 {% endblock %}
 {% block body %}
@@ -46,6 +47,7 @@ h2 .step-check, h3 .step-check { margin-top: 2px; }
   <div class="viewer-bar-label" id="viewer-progress-label">{{ stats.completed_steps }}/{{ stats.total_steps }} ({{ stats.progress_pct }}%)</div>
   <div class="viewer-actions">
     <a href="/">&#8592; Dashboard</a>
+    <button onclick="rescanFile({{ file.id }})">Rescan</button>
     <button onclick="expandAll()">Expand All</button>
     <button onclick="collapseAll()">Collapse All</button>
   </div>
@@ -74,15 +76,15 @@ function renderMarkdown() {
 
 function injectCheckboxes() {
   var el = document.getElementById('viewer-content');
-  var stepMap = {};
-  STEPS.forEach(function(s) {
-    stepMap[s.title] = s;
-  });
+  var headingSteps = STEPS.filter(function(s) { return s.level === 'h2' || s.level === 'h3'; });
+  var listSteps = STEPS.filter(function(s) { return s.level === 'list'; });
 
-  el.querySelectorAll('h2, h3').forEach(function(heading) {
-    var text = heading.textContent.trim();
-    var step = stepMap[text];
-    if (!step) return;
+  var headings = el.querySelectorAll('h2, h3');
+  var hIdx = 0;
+  headings.forEach(function(heading) {
+    if (hIdx >= headingSteps.length) return;
+    var step = headingSteps[hIdx];
+    hIdx++;
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -98,13 +100,12 @@ function injectCheckboxes() {
     heading.classList.add('has-step');
   });
 
-  var listSteps = STEPS.filter(function(s) { return s.level === 'list'; });
-  var listIdx = 0;
-
-  el.querySelectorAll('ul li, ol li').forEach(function(li) {
-    if (listIdx >= listSteps.length) return;
-    var step = listSteps[listIdx];
-    listIdx++;
+  var listItems = el.querySelectorAll('ul li, ol li');
+  var lIdx = 0;
+  listItems.forEach(function(li) {
+    if (lIdx >= listSteps.length) return;
+    var step = listSteps[lIdx];
+    lIdx++;
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
