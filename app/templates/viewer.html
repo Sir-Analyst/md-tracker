@@ -36,7 +36,6 @@
 .step-check:checked + .step-label { text-decoration: line-through; color: #aaa; }
 .step-label { cursor: pointer; }
 h2 .step-check, h3 .step-check { margin-top: 2px; }
-.list-item-check { margin-top: 4px; }
 </style>
 {% endblock %}
 {% block body %}
@@ -90,6 +89,7 @@ function injectCheckboxes() {
     cb.className = 'step-check';
     cb.checked = step.completed === 1;
     cb.dataset.stepId = step.id;
+    cb.dataset.parentId = step.parent_id || '';
     cb.addEventListener('change', function() {
       toggleStep(step.id, this);
     });
@@ -99,7 +99,6 @@ function injectCheckboxes() {
   });
 
   var listSteps = STEPS.filter(function(s) { return s.level === 'list'; });
-  var listItems = el.querySelectorAll('ol li');
   var listIdx = 0;
 
   el.querySelectorAll('ul li, ol li').forEach(function(li) {
@@ -109,9 +108,10 @@ function injectCheckboxes() {
 
     var cb = document.createElement('input');
     cb.type = 'checkbox';
-    cb.className = 'step-check list-item-check';
+    cb.className = 'step-check';
     cb.checked = step.completed === 1;
     cb.dataset.stepId = step.id;
+    cb.dataset.parentId = step.parent_id || '';
     cb.addEventListener('change', function() {
       toggleStep(step.id, this);
     });

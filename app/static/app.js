@@ -51,7 +51,10 @@ async function toggleStep(stepId, checkbox) {
     });
     if (!resp.ok) { showToast('Toggle failed', true); return; }
     var data = await resp.json();
-    checkbox.checked = data.completed === 1;
+    data.changed.forEach(function(change) {
+      var cb = document.querySelector('.step-check[data-step-id="' + change.id + '"]');
+      if (cb) cb.checked = change.completed === 1;
+    });
     updateViewerProgress();
   } catch (e) { showToast('Error: ' + e.message, true); }
 }

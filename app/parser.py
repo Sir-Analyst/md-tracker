@@ -24,6 +24,10 @@ def extract_steps(content: str) -> list[dict]:
     step_index = 0
     in_code_block = False
 
+    last_h2_index = None
+    last_heading_index = None
+    list_stack = []
+
     for line in content.split("\n"):
         stripped = line.strip()
 
@@ -40,7 +44,11 @@ def extract_steps(content: str) -> list[dict]:
                 "step_index": step_index,
                 "title": h2.group(1).strip(),
                 "level": "h2",
+                "parent_index": None,
             })
+            last_h2_index = step_index
+            last_heading_index = step_index
+            list_stack = []
             step_index += 1
             continue
 
@@ -50,19 +58,58 @@ def extract_steps(content: str) -> list[dict]:
                 "step_index": step_index,
                 "title": h3.group(1).strip(),
                 "level": "h3",
+                "parent_index": last_h2_index,
             })
+            last_heading_index = step_index
+            list_stack = []
             step_index += 1
             continue
 
-        listItem = re.match(r"^\d+\.\s+(.+)$", stripped)
-        if listItem:
-            text = listItem.group(1).strip()
-            if len(text) > 5 and not text.startswith("```"):
+        bullet = re.match(r"^(\s*)([-*+])\s+(.+)$", line)
+        if bullet:
+            indent = len(bullet.group(1))
+            text = bullet.group(3).strip()
+            if len(text) > 2:
+                while list_stack and list_stack[-1][0] >= indent:
+                    list_stack.pop()
+
+                parent = None
+                if list_stack:
+                    parent = list_stack[-1][1]
+                elif last_heading_index is not None:
+                    parent = last_heading_index
+
                 steps.append({
                     "step_index": step_index,
                     "title": text,
                     "level": "list",
+                    "parent_index": parent,
                 })
+                list_stack.append((indent, step_index))
+                step_index += 1
+                continue
+
+        numbered = re.match(r"^(\s*)\d+\.\s+(.+)$", line)
+        if numbered:
+            indent = len(numbered.group(1))
+            text = numbered.group(2).strip()
+            if len(text) > 2:
+                while list_stack and list_stack[-1][0] >= indent:
+                    list_stack.pop()
+
+                parent = None
+                if list_stack:
+                    parent = list_stack[-1][1]
+                elif last_heading_index is not None:
+                    parent = last_heading_index
+
+                steps.append({
+                    "step_index": step_index,
+                    "title": text,
+                    "level": "list",
+                    "parent_index": parent,
+                })
+                list_stack.append((indent, step_index))
                 step_index += 1
 
     return steps

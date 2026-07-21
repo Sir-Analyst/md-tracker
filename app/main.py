@@ -18,7 +18,7 @@ from app.database import (
     get_steps,
     init_db,
     list_files,
-    toggle_step,
+    toggle_step_cascade,
     touch_file,
     upsert_steps,
 )
@@ -117,10 +117,10 @@ class ToggleRequest(BaseModel):
 
 @app.patch("/api/steps/{step_id}")
 def api_toggle_step(step_id: int, req: ToggleRequest | None = None):
-    result = toggle_step(step_id)
+    result = toggle_step_cascade(step_id)
     if not result:
         raise HTTPException(status_code=404, detail="Step not found")
-    return result
+    return {"changed": result}
 
 
 @app.get("/api/stats")
