@@ -2,32 +2,35 @@ import subprocess
 import sys
 import time
 import webbrowser
+import threading
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
-PYTHON = str(BASE_DIR / ".venv" / "Scripts" / "python.exe")
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).resolve().parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent
+
 HOST = "127.0.0.1"
 PORT = 8080
 URL = f"http://{HOST}:{PORT}"
 
 
-def main():
-    proc = subprocess.Popen(
-        [PYTHON, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(PORT)],
-        cwd=str(BASE_DIR),
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+def start_server():
+    import uvicorn
+    uvicorn.run("app.main:app", host=HOST, port=PORT, log_level="error")
 
+
+def main():
+    t = threading.Thread(target=start_server, daemon=True)
+    t.start()
     time.sleep(2)
     webbrowser.open(URL)
 
     try:
-        proc.wait()
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
-        proc.terminate()
-        proc.wait()
+        pass
 
 
 if __name__ == "__main__":
